@@ -4,7 +4,7 @@ import pandas as pd
 from dotenv import load_dotenv
 from utils.qa_pipeline import QAPipeline
 from utils.report_generator import dataframe_to_csv_bytes, dataframe_to_pdf_bytes
-from utils.fetch_latest_news import fetch_latest_articles
+
 
 load_dotenv()
 
