@@ -3,7 +3,7 @@ import time
 import chromadb
 from sentence_transformers import SentenceTransformer
 from groq import Groq
-from .fetch_news import extract_article
+from utils.fetch_news import extract_article
 
 
 class QAPipeline:
