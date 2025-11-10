@@ -20,7 +20,7 @@ class QAPipeline:
         texts, ids = [], []
         for i, url in enumerate(urls):
             txt = extract_article(url)
-            if len(txt) > 200:
+            if len(txt) > 50:
                 texts.append(txt)
                 ids.append(str(i))
         if not texts:
