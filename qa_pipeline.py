@@ -3,6 +3,8 @@ import chromadb
 from sentence_transformers import SentenceTransformer
 from groq import Groq
 from .fetch_news import extract_article
+from dotenv import load_dotenv
+
 
 
 class QAPipeline:
