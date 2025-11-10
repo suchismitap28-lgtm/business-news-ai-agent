@@ -1,82 +1,77 @@
-import streamlit as st
 import os
-import pandas as pd
-from dotenv import load_dotenv
-from utils.qa_pipeline import QAPipeline
-from utils.report_generator import dataframe_to_csv_bytes, dataframe_to_pdf_bytes
-
-# ✅ Load environment variables (optional)
-load_dotenv()
-
-# ✅ Streamlit page setup
-st.set_page_config(
-    page_title="Business News AI Analyst",
-    page_icon="🧠",
-    layout="wide"
-)
-
+import time
+import chromadb
+from sentence_transformers import SentenceTransformer
+from groq import Groq
+from .fetch_news import extract_article
 
 
 class QAPipeline:
-    def __init__(self, model="llama-3.1-8b-instant"):
-        self.client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-        self.model = model
+    def __init__(self):
+        api_key = os.getenv("GROQ_API_KEY")
+        if not api_key:
+            raise ValueError("Missing GROQ_API_KEY.")
+        self.client = Groq(api_key=api_key)
         self.embedder = SentenceTransformer("all-MiniLM-L6-v2")
-        self.chroma_client = chromadb.Client()
-        self.collection = self.chroma_client.get_or_create_collection("business_docs")
+        self.db = chromadb.Client()
+        self.collection = self.db.create_collection(f"news_{int(time.time())}")
         self.urls = []
 
-    def add_documents(self, texts, urls):
-        embeddings = self.embedder.encode(texts)
-        ids = [str(i) for i in range(len(texts))]
-        self.collection.add(documents=texts, embeddings=embeddings, ids=ids)
-        self.urls.extend(urls)
+    def build_embeddings(self, urls):
+        self.urls = urls
+        texts, ids = [], []
+        for i, url in enumerate(urls):
+            txt = extract_article(url)
+            if len(txt) > 200:
+                texts.append(txt)
+                ids.append(str(i))
+        if not texts:
+            raise ValueError("No usable articles found.")
+        embs = self.embedder.encode(texts)
+        self.collection.add(documents=texts, embeddings=embs, ids=ids)
+        return urls
 
+    def _retrieve(self, question, k=4):
+        q_emb = self.embedder.encode([question])[0]
+        res = self.collection.query(query_embeddings=[q_emb], n_results=k)
+        docs = res.get("documents", [[]])[0]
+        ids = res.get("ids", [[]])[0]
+        return docs, ids
 
-st.set_page_config(page_title='Business News AI Analyst', page_icon='🧠', layout='wide')
-st.title('🧠 Business News AI Analyst')
+    def answer(self, question):
+        docs, ids = self._retrieve(question)
+        if not docs:
+            return "No relevant info found.", []
 
-st.subheader("📰 Auto-Fetch Latest Business Articles")
+        context = "\n---\n".join(d[:900] for d in docs)
 
-topic = st.text_input("Enter a topic or company name (e.g. Lenskart IPO):")
-if st.button("Fetch Articles"):
-    if not topic.strip():
-        st.warning("Please enter a topic name.")
-    else:
-        with st.spinner("Fetching latest news..."):
-            articles = fetch_latest_articles(topic, max_results=5)
-            if not articles:
-                st.error("No news found. Try another topic.")
-            else:
-                st.success(f"Fetched {len(articles)} articles:")
-                for art in articles:
-                    st.markdown(f"- [{art['title']}]({art['url']}) — {art.get('source','Unknown')}")
+        prompt = f"""
+You are a financial analyst preparing an IPO insight report.
+Use only the information in the provided context. 
+If the context doesn’t contain an answer, say “The available sources do not specify this detail.”
 
-                # Auto-fill URLs into the next text box
-                urls_text = "\n".join([a["url"] for a in articles if a["url"]])
-                st.session_state["auto_urls"] = urls_text
+Format your response in 3 parts:
+1️⃣ Short summary (2–3 lines)
+2️⃣ Key figures or facts (if mentioned)
+3️⃣ Analytical takeaway (why it matters for investors)
 
-urls_input = st.text_area("Paste News URLs (one per line):", 
-                          height=150, 
-                          value=st.session_state.get("auto_urls", ""))
-qs_input = st.text_area('Enter Questions (one per line):', height=150)
+Question: {question}
+Context:
+{context}
+"""
 
-if st.button('Generate Report'):
-    urls = [u.strip() for u in urls_input.splitlines() if u.strip()]
-    qs = [q.strip() for q in qs_input.splitlines() if q.strip()]
-    if not urls or not qs:
-        st.error('Please add both URLs and questions.')
-    else:
         try:
-            pipe = QAPipeline()
-            pipe.build_embeddings(urls)
-            results = []
-            for q in qs:
-                ans, used = pipe.answer(q)
-                results.append({'Question': q, 'Answer': ans, 'Sources': ' | '.join(used)})
-            df = pd.DataFrame(results)
-            st.dataframe(df)
-            st.download_button('📄 Download CSV', dataframe_to_csv_bytes(df), 'business_ai_report.csv', 'text/csv')
-            st.download_button('📘 Download PDF', dataframe_to_pdf_bytes(df), 'business_ai_report.pdf', 'application/pdf')
+            response = self.client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.2,
+            )
+            answer = response.choices[0].message.content.strip()
         except Exception as e:
-            st.error(f'Error: {e}')
+            answer = f"Error generating answer: {e}"
+
+        used_sources = [
+            self.urls[int(i)] for i in ids if int(i) < len(self.urls)
+        ]
+        return answer, used_sources
+
