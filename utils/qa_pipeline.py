@@ -26,6 +26,15 @@ class QAPipeline:
         if not texts:
             raise ValueError('No usable articles found.')
         embs = self.embedder.encode(texts)
+        chunk_size = 800
+for i, url in enumerate(urls):
+    txt = extract_article(url)
+    if len(txt) > 100:
+        for j in range(0, len(txt), chunk_size):
+            chunk = txt[j:j + chunk_size]
+            texts.append(chunk)
+            ids.append(f"{i}-{j}")
+
         self.collection.add(documents=texts, embeddings=embs, ids=ids)
         return urls
 
