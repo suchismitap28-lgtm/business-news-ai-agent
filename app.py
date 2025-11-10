@@ -1,7 +1,3 @@
-# =========================================
-# 🧠 Business News AI Analyst - Streamlit App
-# =========================================
-
 import streamlit as st
 import os
 import pandas as pd
