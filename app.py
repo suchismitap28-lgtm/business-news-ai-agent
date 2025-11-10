@@ -1,9 +1,22 @@
 import os
-import streamlit as st
-import pandas as pd
-from dotenv import load_dotenv
-from utils.qa_pipeline import QAPipeline
-from utils.report_generator import dataframe_to_csv_bytes, dataframe_to_pdf_bytes
+import chromadb
+from sentence_transformers import SentenceTransformer
+from groq import Groq
+
+class QAPipeline:
+    def __init__(self, model="llama-3.1-8b-instant"):
+        self.client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        self.model = model
+        self.embedder = SentenceTransformer("all-MiniLM-L6-v2")
+        self.chroma_client = chromadb.Client()
+        self.collection = self.chroma_client.get_or_create_collection("business_docs")
+        self.urls = []
+
+    def add_documents(self, texts, urls):
+        embeddings = self.embedder.encode(texts)
+        ids = [str(i) for i in range(len(texts))]
+        self.collection.add(documents=texts, embeddings=embeddings, ids=ids)
+        self.urls.extend(urls)
 
 
 load_dotenv()
