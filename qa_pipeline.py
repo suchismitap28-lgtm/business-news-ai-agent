@@ -41,16 +41,18 @@ class QAPipeline:
         if not docs:
             return 'No relevant info found.', []
         context = '\n---\n'.join(d[:900] for d in docs)
-        prompt = f"""Answer using only the context below.
+       prompt = f"""
+You are a financial analyst preparing an IPO insight report.
+Use only the information in the provided context. 
+If the context doesn’t contain an answer, say “The available sources do not specify this detail.”
+
+Format your response in 3 parts:
+1️⃣ Short summary (2–3 lines)
+2️⃣ Key figures or facts (if mentioned)
+3️⃣ Analytical takeaway (why it matters for investors)
+
 Question: {question}
 Context:
 {context}
 """
-        resp = self.client.chat.completions.create(
-            model='llama-3.1-8b-instant',
-            messages=[{'role': 'user', 'content': prompt}],
-            temperature=0.2
-        )
-        answer = resp.choices[0].message.content.strip()
-        used = [self.urls[int(i)] for i in ids if int(i) < len(self.urls)]
-        return answer, used
+
