@@ -1,10 +1,10 @@
 streamlit
-requests
-beautifulsoup4
-sentence-transformers
 chromadb
+sentence-transformers
 groq
-pandas
-fpdf
-python-dotenv
+beautifulsoup4
+requests
 duckduckgo-search
+fpdf
+pandas
+python-dotenv
