@@ -1,12 +1,24 @@
+# =========================================
+# 🧠 Business News AI Analyst - Streamlit App
+# =========================================
+
+import streamlit as st
 import os
 import pandas as pd
-import streamlit as st
 from dotenv import load_dotenv
 from utils.qa_pipeline import QAPipeline
 from utils.report_generator import dataframe_to_csv_bytes, dataframe_to_pdf_bytes
 
+# ✅ Load environment variables (optional)
 load_dotenv()
-st.set_page_config(page_title='Business News AI Analyst', page_icon='🧠', layout='wide')
+
+# ✅ Streamlit page setup
+st.set_page_config(
+    page_title="Business News AI Analyst",
+    page_icon="🧠",
+    layout="wide"
+)
+
 
 
 class QAPipeline:
