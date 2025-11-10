@@ -4,13 +4,36 @@ import pandas as pd
 from dotenv import load_dotenv
 from utils.qa_pipeline import QAPipeline
 from utils.report_generator import dataframe_to_csv_bytes, dataframe_to_pdf_bytes
+from utils.fetch_latest_news import fetch_latest_articles
 
 load_dotenv()
 
 st.set_page_config(page_title='Business News AI Analyst', page_icon='🧠', layout='wide')
 st.title('🧠 Business News AI Analyst')
 
-urls_input = st.text_area('Paste News URLs (one per line):', height=150)
+st.subheader("📰 Auto-Fetch Latest Business Articles")
+
+topic = st.text_input("Enter a topic or company name (e.g. Lenskart IPO):")
+if st.button("Fetch Articles"):
+    if not topic.strip():
+        st.warning("Please enter a topic name.")
+    else:
+        with st.spinner("Fetching latest news..."):
+            articles = fetch_latest_articles(topic, max_results=5)
+            if not articles:
+                st.error("No news found. Try another topic.")
+            else:
+                st.success(f"Fetched {len(articles)} articles:")
+                for art in articles:
+                    st.markdown(f"- [{art['title']}]({art['url']}) — {art.get('source','Unknown')}")
+
+                # Auto-fill URLs into the next text box
+                urls_text = "\n".join([a["url"] for a in articles if a["url"]])
+                st.session_state["auto_urls"] = urls_text
+
+urls_input = st.text_area("Paste News URLs (one per line):", 
+                          height=150, 
+                          value=st.session_state.get("auto_urls", ""))
 qs_input = st.text_area('Enter Questions (one per line):', height=150)
 
 if st.button('Generate Report'):
