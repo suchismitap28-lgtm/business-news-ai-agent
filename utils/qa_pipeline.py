@@ -38,7 +38,7 @@ for i, url in enumerate(urls):
         self.collection.add(documents=texts, embeddings=embs, ids=ids)
         return urls
 
-    def _retrieve(self, question, k=4):
+    def _retrieve(self, question, k=8):
         q_emb = self.embedder.encode([question])[0]
         res = self.collection.query(query_embeddings=[q_emb], n_results=k)
         docs = res.get('documents', [[]])[0]
