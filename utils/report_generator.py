@@ -12,11 +12,9 @@ def dataframe_to_pdf_bytes(df: pd.DataFrame, title='Business AI Report') -> byte
     pdf.cell(0, 10, title, ln=True)
     pdf.set_font("Arial", "", 11)
 
-    # Handle UTF-8 encoding safely
     def safe_text(text):
         if not isinstance(text, str):
             text = str(text)
-        # Replace smart quotes and unsupported symbols
         return (
             text.replace("’", "'")
                 .replace("“", '"')
@@ -33,7 +31,7 @@ def dataframe_to_pdf_bytes(df: pd.DataFrame, title='Business AI Report') -> byte
         pdf.multi_cell(0, 8, f"Sources: {safe_text(row['Sources'])}")
         pdf.ln(5)
 
-    buf = io.BytesIO()
-    pdf.output(buf)
-    return buf.getvalue()
+    # ✅ Fix: output to string (bytes)
+    pdf_output = pdf.output(dest='S').encode('latin-1')
 
+    return io.BytesIO(pdf_output).getvalue()
