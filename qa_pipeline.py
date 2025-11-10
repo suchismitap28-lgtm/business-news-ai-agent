@@ -4,6 +4,7 @@ from sentence_transformers import SentenceTransformer
 from groq import Groq
 from .fetch_news import extract_article
 
+
 class QAPipeline:
     def __init__(self):
         api_key = os.getenv('GROQ_API_KEY')
@@ -40,8 +41,10 @@ class QAPipeline:
         docs, ids = self._retrieve(question)
         if not docs:
             return 'No relevant info found.', []
+        
         context = '\n---\n'.join(d[:900] for d in docs)
-       prompt = f"""
+
+        prompt = f"""
 You are a financial analyst preparing an IPO insight report.
 Use only the information in the provided context. 
 If the context doesn’t contain an answer, say “The available sources do not specify this detail.”
@@ -55,4 +58,19 @@ Question: {question}
 Context:
 {context}
 """
+
+        try:
+            response = self.client.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.2,
+            )
+            answer = response.choices[0].message.content.strip()
+        except Exception as e:
+            answer = f"Error generating answer: {e}"
+
+        used_sources = [
+            self.urls[int(i)] for i in ids if int(i) < len(self.urls)
+        ]
+        return answer, used_sources
 
