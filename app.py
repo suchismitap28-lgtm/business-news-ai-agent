@@ -19,8 +19,6 @@ class QAPipeline:
         self.urls.extend(urls)
 
 
-load_dotenv()
-
 st.set_page_config(page_title='Business News AI Analyst', page_icon='🧠', layout='wide')
 st.title('🧠 Business News AI Analyst')
 
