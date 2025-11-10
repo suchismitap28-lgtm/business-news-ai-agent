@@ -45,23 +45,54 @@ for i, url in enumerate(urls):
         ids = res.get('ids', [[]])[0]
         return docs, ids
 
-    def answer(self, question):
-        docs, ids = self._retrieve(question)
-        if not docs:
-            return 'No relevant info found.', []
-        context = '\n---\n'.join(d[:900] for d in docs)
-        prompt = f"""
-You are an equity research analyst preparing an IPO insights summary for Lenskart.
+   def answer(self, question):
+    docs, ids = self._retrieve(question)
+    if not docs:
+        return "No relevant info found.", []
 
-Using ONLY the information below, craft a well-structured answer.
-If information is missing, say “The available sources do not mention this.”
+    # Combine top docs into one context
+    context = "\n---\n".join(d[:1000] for d in docs)
 
-### Response Structure:
-1. **Summary Insight (2–3 sentences)** — Concise answer to the question.
-2. **Supporting Facts** — Key data points, numbers, or quotes from context.
-3. **Analytical Commentary** — What this means for investors or market trends.
+    # ✅ Optional step: Summarize context first (makes answers sharper)
+    context_summary_prompt = f"Summarize these texts briefly, capturing all factual details:\n{context}"
+
+    try:
+        summary_resp = self.client.chat.completions.create(
+            model='llama-3.1-8b-instant',
+            messages=[{'role': 'user', 'content': context_summary_prompt}],
+            temperature=0.1
+        )
+        context_summary = summary_resp.choices[0].message.content.strip()
+    except Exception as e:
+        print("⚠️ Summarization failed, fallback to raw context:", e)
+        context_summary = context
+
+    # ✅ Now build a structured final prompt
+    prompt = f"""
+You are a financial analyst preparing an IPO insights report for Lenskart.
+
+Use only the context below and the summary to answer.
+If the answer is missing, say: "The available sources do not mention this."
+
+### Response Format:
+1️⃣ Short summary (2–3 lines)
+2️⃣ Supporting facts (numbers, data, or quotes)
+3️⃣ Analytical takeaway (why it matters for investors)
 
 Question: {question}
-Context:
-{context}
+
+Context Summary:
+{context_summary}
 """
+
+    # Generate answer
+    resp = self.client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        messages=[{'role': 'user', 'content': prompt}],
+        temperature=0.2
+    )
+    answer = resp.choices[0].message.content.strip()
+
+    used = [self.urls[int(i.split('-')[0])] for i in ids if int(i.split('-')[0]) < len(self.urls)]
+    return answer, used
+
