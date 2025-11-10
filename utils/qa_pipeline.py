@@ -50,16 +50,18 @@ for i, url in enumerate(urls):
         if not docs:
             return 'No relevant info found.', []
         context = '\n---\n'.join(d[:900] for d in docs)
-        prompt = f"""Answer using only the context below.
+        prompt = f"""
+You are an equity research analyst preparing an IPO insights summary for Lenskart.
+
+Using ONLY the information below, craft a well-structured answer.
+If information is missing, say “The available sources do not mention this.”
+
+### Response Structure:
+1. **Summary Insight (2–3 sentences)** — Concise answer to the question.
+2. **Supporting Facts** — Key data points, numbers, or quotes from context.
+3. **Analytical Commentary** — What this means for investors or market trends.
+
 Question: {question}
 Context:
 {context}
 """
-        resp = self.client.chat.completions.create(
-            model='llama-3.1-8b-instant',
-            messages=[{'role': 'user', 'content': prompt}],
-            temperature=0.2
-        )
-        answer = resp.choices[0].message.content.strip()
-        used = [self.urls[int(i)] for i in ids if int(i) < len(self.urls)]
-        return answer, used
